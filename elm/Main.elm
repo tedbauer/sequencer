@@ -12,7 +12,12 @@ import Sequencer
 
 
 type alias Model =
-    { controlBar : ControlBar.Model, sequencer : Sequencer.Model, drumMachine : DrumMachine.Model, lfo : Lfo.Model }
+    { controlBar : ControlBar.Model
+    , sequencer : Sequencer.Model
+    , drumMachine : DrumMachine.Model
+    , lfo : Lfo.Model
+    , lfoCmd : Cmd Msg
+    }
 
 
 
@@ -21,12 +26,17 @@ type alias Model =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
+    let
+        ( lfoModel, lfoCmd ) =
+            Lfo.init
+    in
     ( { controlBar = ControlBar.init
       , sequencer = Sequencer.init
       , drumMachine = DrumMachine.init
-      , lfo = Lfo.init
+      , lfo = lfoModel
+      , lfoCmd = Cmd.map LfoMsg lfoCmd
       }
-    , Cmd.none
+    , Cmd.batch [ Cmd.map LfoMsg lfoCmd ]
     )
 
 
@@ -119,10 +129,12 @@ update msg model =
 
         LfoMsg lfoMsg ->
             let
-                ( subModel, subCmd ) =
+                ( updatedLfo, lfoCmd ) =
                     Lfo.update lfoMsg model.lfo
             in
-            ( { model | lfo = subModel }, Cmd.map LfoMsg subCmd )
+            ( { model | lfo = updatedLfo, lfoCmd = Cmd.map LfoMsg lfoCmd }
+            , Cmd.map LfoMsg lfoCmd
+            )
 
 
 

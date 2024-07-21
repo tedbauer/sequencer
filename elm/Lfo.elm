@@ -5,11 +5,13 @@ import Html.Attributes exposing (class, height, width)
 import Html.Events exposing (onMouseDown)
 import Svg exposing (line, svg)
 import Svg.Attributes
+import Knob
 
 
 type alias Model =
     { frequency : Float
     , intensity : Float
+    , frequencyKnob : Knob.Model
     }
 
 
@@ -17,11 +19,14 @@ type alias Model =
 -- MODEL
 
 
-init : Model
+init : ( Model, Cmd Msg )
 init =
-    { frequency = 10
-    , intensity = 9
-    }
+    ( { frequency = 10
+      , intensity = 9
+      , frequencyKnob = Knob.init "Frequency" 0 10 0.1 10
+      }
+    , Cmd.none
+    )
 
 
 
@@ -72,7 +77,18 @@ view model =
                     ]
                 ]
             , div [ class "lfoparams" ]
-                [ ul [] [ li [] [ div [ class "parambutton", onMouseDown (SetFrequency (model.frequency + 1)) ] [ text "➕" ], div [ class "parambutton", onMouseDown (SetFrequency (model.frequency - 1)) ] [ text "➖" ], text "Frequency: ", text (String.fromFloat model.frequency) ], li [] [ div [ class "parambutton", onMouseDown (SetIntensity (model.intensity + 1)) ] [ text "➕" ], div [ class "parambutton", onMouseDown (SetIntensity (model.intensity - 1)) ] [ text "➖" ], text "Intensity: ", text (String.fromFloat model.intensity) ], li [] [ text "Wave" ], li [] [ text "Target" ] ] ]
+                [ ul []
+                    [ li [] [ Html.map KnobMsg (Knob.view model.frequencyKnob) ]
+                    , li []
+                        [ div [ class "parambutton", onMouseDown (SetIntensity (model.intensity + 1)) ] [ text "➕" ]
+                        , div [ class "parambutton", onMouseDown (SetIntensity (model.intensity - 1)) ] [ text "➖" ]
+                        , text "Intensity: "
+                        , text (String.fromFloat model.intensity)
+                        ]
+                    , li [] [ text "Wave" ]
+                    , li [] [ text "Target" ]
+                    ]
+                ]
             ]
         ]
 
@@ -84,6 +100,7 @@ view model =
 type Msg
     = SetFrequency Float
     | SetIntensity Float
+    | KnobMsg Knob.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -94,6 +111,24 @@ update msg model =
 
         SetIntensity intensity ->
             ( { model | intensity = intensity }, transmitLfoIntensity (round intensity) )
+
+        KnobMsg knobMsg ->
+            let
+                ( updatedKnob, knobCmd ) =
+                    Knob.update knobMsg model.frequencyKnob
+
+                newFrequency =
+                    updatedKnob.value
+            in
+            ( { model
+                | frequencyKnob = updatedKnob
+                , frequency = newFrequency
+              }
+            , Cmd.batch
+                [ Cmd.map KnobMsg knobCmd
+                , transmitLfoFrequency (round newFrequency)
+                ]
+            )
 
 
 
